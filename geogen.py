@@ -19,6 +19,7 @@ from utils import mkdir, Logger
 from PIL import Image
 from fdtd_geometry import CustomGeometry
 
+
 def to_array(l, dx):
     n = np.floor(l / dx)
     if n == l / dx:
@@ -157,7 +158,6 @@ def embed_to_rectangle(rect, shape_type, min_size):
         return xy_c, [wx_e, wy_e], [wx_i, wy_i]
 
 
-
 class Canvas():
     def __init__(self, canvas, shapes=None, material_idx=1):
         self.mask = canvas
@@ -276,72 +276,83 @@ class Grid():
             z0 = self.z0
         for z in range(z0, z0 + h):
             mask = mask == 1
-            self.mask[mask, z] = material_idx 
-                
-            
-def generate_random_shapes(mesh, types='all', min_size=10, max_shapes=3, allow_overlap=False, denominator=6):
+            self.mask[mask, z] = material_idx
+
+
+def generate_random_shapes(mesh, types='all', min_size=10, max_shapes=3, allow_overlap=False, denominator=20):
     if types == 'all':
         shape_types = ['rectangle', 'square', 'circle', 'ellipse', 'ring', 'shoe']
     else:
         shape_types = types
 
-    canvas = Canvas(mesh)
+    canvas = Canvas(np.zeros_like(mesh, dtype=np.int32))
     shapes = []
-    if np.random.randint(0, denominator) == 0:  # possibility to generate continuous rectangle shape
-        labels, connected = continuous_rectangle(mesh, min_size, orientation='random')
-        if (not connected) & (len(labels) == 2):  # transfrom the 2nd isolated shape into shapely shape
-            iso_bbox = to_shapely_coords(labels[1])
-            shape_type = np.random.choice(shape_types)
-            shape = Shape.embedded_into_rectangle(mesh.shape, min_size, iso_bbox, shape_type=shape_type)
-            shapes.append(shape)
-            canvas.add_shapes(shapes)
-            (x0, x1), (y0, y1) = labels[0][0], labels[0][1]
-            canvas.mask[x0:x1 + 1, y0:y1 + 1] = 1
-            #return canvas
-        else:
-            for label in labels:
-                (x0, x1), (y0, y1) = label[0], label[1]
-                canvas.mask[x0:x1 + 1, y0:y1 + 1] = 1
-            #return canvas
+    if allow_overlap:
+        overlap = np.random.choice([False,False, True])
     else:
-        image, labels = generate_rect_mask(mesh, min_size,
-                                           max_shapes=max_shapes,
-                                           allow_overlap=allow_overlap)
+        overlap = False
+    image, labels = generate_rect_mask(mesh, min_size,
+                                       max_shapes=max_shapes,
+                                       allow_overlap=overlap)
 
-        for label in labels:
+    if np.random.randint(0, denominator) == 0:
+        tmp_coords = labels[0][1]
+        labels[0][0] = 'slab'
+        if np.random.randint(0, 2) == 0:
+            tmp_coords[0] = (int(mesh.shape[0] / 2), tmp_coords[0][1])
+            tmp_coords[1] = mesh.shape[0]
+        else:
+            tmp_coords[0] = (tmp_coords[0][0], int(mesh.shape[1] / 2))
+            tmp_coords[2] = mesh.shape[1]
+    area = []
+    for label in labels:
+        tmpcanvas = Canvas(np.zeros_like(mesh, dtype=np.int32))
+        if label[0] == 'slab':
+            shape_type = 'rectangle'
+        else:
             shape_type = np.random.choice(shape_types)
-            shape = Shape.embedded_into_rectangle(mesh.shape, min_size, label[1], shape_type=shape_type)
-            shapes.append(shape)
-        canvas.add_shapes(shapes)
-    if len(np.unique(canvas.mask))==1: # means the shape is not generated properly:
-        print('This shape might not be correct')
-        #return generate_random_shapes(mesh, types, min_size, max_shapes, allow_overlap, denominator)
-    return canvas
+            label[0] = shape_type
+        shape = Shape.embedded_into_rectangle(mesh.shape, min_size, label[1], shape_type=shape_type)
+        shapes.append(shape)
+        tmpcanvas.add_shape(shape)
+        area.append(np.sum(tmpcanvas.mask))
 
-def write_png_geometry(imgpath,savedir,dx=0.005,grid_shape=[200,200,200],h=0.2,z1=0.4):
-    assert imgpath.endswith('png'),'Imgpath not correct'
-    #img=io.imread(imgpath)
+    canvas.add_shapes(shapes)
+    if np.sum(area) > np.sum(canvas.mask):
+        overlap = True
+    if np.max(area) == np.sum(canvas.mask):
+        overlap = False  # means only the biggest shape is present
+        labels=labels[np.argmax(area)]  # in this case only keep the largest
+    if len(np.unique(canvas.mask)) == 1:  # means the shape is not generated properly:
+        print('This shape might not be correct')
+    canvas.show()
+    # return generate_random_shapes(mesh, types, min_size, max_shapes, allow_overlap, denominator)
+    return canvas, labels, overlap
+
+
+def write_png_geometry(imgpath, savedir, dx=0.005, grid_shape=[200, 200, 200], h=0.2, z1=0.4):
+    assert imgpath.endswith('png'), 'Imgpath not correct'
+    # img=io.imread(imgpath)
     image = Image.open(imgpath)
-    img=np.array(image)
-    img=img[:,:,0]
-    if img.shape!=grid_shape[:2]:
+    img = np.array(image)
+    img = img[:, :, 0]
+    if img.shape != grid_shape[:2]:
         img = np.array(image.resize(grid_shape[:2]))
-        img=img[:,:,0]
-    mask=np.zeros(grid_shape[:2])
-    mask[np.where(img==255)]=1
+        img = img[:, :, 0]
+    mask = np.zeros(grid_shape[:2])
+    mask[np.where(img == 255)] = 1
     canvas = Canvas(np.zeros(grid_shape[:2], np.int32))
-    canvas.mask=mask
+    canvas.mask = mask
     h = to_array(h, dx)
     z_glass = to_array(z1, dx)
-    grid = Grid(grid_shape=grid_shape, bottom = {'h': z_glass, 'material_idx': 1})
+    grid = Grid(grid_shape=grid_shape, bottom={'h': z_glass, 'material_idx': 1})
     grid.add_canvas(canvas, h, material_idx=2)
     ful = grid.mask[:]
     mkdir(savedir)
     geometry = CustomGeometry(ful, outdir=savedir)
     geometry.write_to_files(fname_template='material')
-    return 
-    
-      
+    return
+
 
 ########### definition ends ###############
 if __name__ == '__main__':
@@ -350,68 +361,13 @@ if __name__ == '__main__':
     warnings.filterwarnings("error")
     upml_gap = 0
     si_id = 2
-    grid_shape = (200, 200, 200)
+    grid_shape = (100, 100, 100)
     h = 0.2
     dx = 0.005
-    shape_types = ['rectangle', 'square', 'circle', 'ellipse', 'shoe', 'ring']
-
-
-    def generate_random_geometry(grid_shape, h, z_glass=0.5, shape_types='all', min_size=10, max_shapes=2,
-                                 allow_overlap=False):
-        canvas = np.zeros(grid_shape[:2], np.int32)
-        canvas = generate_random_shapes(canvas, types=shape_types, min_size=min_size, max_shapes=max_shapes,allow_overlap=allow_overlap)
-        h = to_array(h, dx)
-        z_glass = to_array(z_glass, dx)
-        grid = Grid(grid_shape=grid_shape,
-                    bottom={'h': z_glass, 'material_idx': 1})
-        src = grid.mask[:]
-        grid = Grid(grid_shape=grid_shape,
-                    bottom={'h': z_glass, 'material_idx': 1})
-        grid.add_canvas(canvas, h, material_idx=si_id)
-        ful = grid.mask[:]
-        return canvas, src, ful
-
-
-    count = 0
-    shit = 0
-    full = 0
-    shits1 = []
-    shits2 = []
-    full_ls = []
-    shitwarning = []
-    for i in range(1):
-        with warnings.catch_warnings(record=True) as w:
-            # Cause all warnings to always be triggered.
-            warnings.simplefilter("always")
-            mask, src, ful = generate_random_geometry(grid_shape, h,
-                                                      z_glass=0.4,
-                                                      shape_types='all',
-                                                      min_size=30,
-                                                      max_shapes=3,
-                                                      allow_overlap=False)
-            if len(w):
-                # catch the warning content
-                # print('shit')
-                shits1.append(mask)
-                shitwarning.append(w[0].message)
-        flag = 0
-        if mask.mask.shape == (200, 200):
-            flag = 1
-            for item in np.unique(mask.mask):
-                if item not in [0, 1]:
-                    # print('shit1')
-                    shits1.append(mask)
-                    flag = 0
-            if len(np.unique(mask.mask)) == 1:
-                if np.unique(mask.mask)[0] == 0:
-                    # print('shit2')
-                    shits2.append(mask)
-                    flag = 0
-            if len(np.unique(mask.mask)) == 1:
-                if np.unique(mask.mask)[0] == 1:
-                    full += 1
-                    full_ls.append(mask)
-        if flag:
-            count = count + 1
-        else:
-            shit = shit + 1
+    shape_types = ['rectangle', 'ellipse']
+    mesh = np.zeros(grid_shape[:2], dtype=np.int32)
+    types = 'all'
+    min_size = 10
+    max_shapes = 3
+    allow_overlap = True
+    denominator = 6
