@@ -322,10 +322,10 @@ def generate_random_shapes(mesh, types='all', min_size=10, max_shapes=3, allow_o
         overlap = True
     if np.max(area) == np.sum(canvas.mask):
         overlap = False  # means only the biggest shape is present
-        labels=labels[np.argmax(area)]  # in this case only keep the largest
+        labels=[labels[np.argmax(area)]]  # in this case only keep the largest
     if len(np.unique(canvas.mask)) == 1:  # means the shape is not generated properly:
         print('This shape might not be correct')
-    canvas.show()
+    #canvas.show()
     # return generate_random_shapes(mesh, types, min_size, max_shapes, allow_overlap, denominator)
     return canvas, labels, overlap
 
