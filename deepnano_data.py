@@ -35,15 +35,14 @@ def clear_csv(all_data, parsed_data, outputfile):
     return True
 
 
-def merge_parsed(parsed_dir,archive_dir,output_dir):
+def merge_parsed(parsed_dir,output_dir):
     item_ls = os.listdir(parsed_dir)
-    mkdir(output_dir)
-    mkdir(archive_dir)
+    mkdir(output_dir,rm=True)
     output_datafile = os.path.join(output_dir, 'data.csv')
     attribute_ls = ['amp', 'phi', 'err', 'labels']
     with open(os.path.join(output_dir, 'Merge.log'), 'a') as f:
         timestr = time.strftime("%Y%m%d_%H%M", time.localtime())
-        f.write('data processing log' + timestr)
+        f.write('Data processing log' + timestr)
     dir_ls = []
     for item in item_ls:
         with open(os.path.join(output_dir, 'Merge.log'), 'a') as f:
@@ -54,18 +53,12 @@ def merge_parsed(parsed_dir,archive_dir,output_dir):
                 item_ls.remove(item)
     list_of_data = [pd.read_csv(os.path.join(d, 'data.csv'), index_col=0) for d in dir_ls]
     merge_csv(list_of_data, output_datafile)
-
     for att in attribute_ls:
         merged_att = []
         for d in dir_ls:
             merged_att.append(np.load(os.path.join(d, f'{att}.npy'), allow_pickle=True))
         merged_att = np.concatenate(merged_att)
         np.save(os.path.join(output_dir, f'{att}.npy'), merged_att)
-
-    for i, item in enumerate(item_ls):
-        d = dir_ls[i]
-        os.rename(d, os.path.join(archive_dir, item))
-        print('archive data in', os.path.join(archive_dir, item))
     return True
 
 def merge_raw(raw_dir):
