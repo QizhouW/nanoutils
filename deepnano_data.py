@@ -23,6 +23,7 @@ def readey(resdir, file):
 
 def merge_csv(list_of_data, outputfile):
     tmp = pd.concat(list_of_data).drop_duplicates(keep=False)
+    tmp.reset_index(drop=True)
     tmp.to_csv(outputfile)
     print('Merged data length: ', len(tmp))
     return True
