@@ -24,6 +24,7 @@ def readey(resdir, file):
 def merge_csv(list_of_data, outputfile):
     tmp = pd.concat(list_of_data).drop_duplicates(keep=False)
     tmp.reset_index(drop=True)
+    
     tmp.to_csv(outputfile)
     print('Merged data length: ', len(tmp))
     return True
@@ -36,23 +37,28 @@ def clear_csv(all_data, parsed_data, outputfile):
     return True
 
 
-def merge_parsed(parsed_dir,output_dir):
+def merge_parsed(parsed_dir,output_dir,dim):
+    output_dir=os.path.join(output_dir,str(dim))
+    mkdir(output_dir)
     item_ls = os.listdir(parsed_dir)
     mkdir(output_dir,rm=True)
     output_datafile = os.path.join(output_dir, 'data.csv')
-    attribute_ls = ['amp', 'phi', 'err', 'labels']
+    attribute_ls = ['amp', 'phi', 'err', 'labels','geometry']
     with open(os.path.join(output_dir, 'Merge.log'), 'a') as f:
         timestr = time.strftime("%Y%m%d_%H%M", time.localtime())
         f.write('Data processing log' + timestr)
     dir_ls = []
+    list_of_data=[]
     for item in item_ls:
         with open(os.path.join(output_dir, 'Merge.log'), 'a') as f:
             if os.path.isdir(os.path.join(parsed_dir, item)):
-                dir_ls.append(os.path.join(parsed_dir, item))
-                f.write(f'Added data from {item}\n')
-            else:
-                item_ls.remove(item)
-    list_of_data = [pd.read_csv(os.path.join(d, 'data.csv'), index_col=0) for d in dir_ls]
+                d=os.path.join(parsed_dir, item)
+                dataitem=pd.read_csv(os.path.join(d, 'data.csv'), index_col=0)
+                if np.unique(dataitem.nx)==np.unique(dim):
+                    list_of_data.append(dataitem)
+                    f.write(f'Added data from {item}\n')
+                    dir_ls.append(d)
+    print(dir_ls)
     merge_csv(list_of_data, output_datafile)
     for att in attribute_ls:
         merged_att = []
