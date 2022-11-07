@@ -36,26 +36,31 @@ def clear_csv(all_data, parsed_data, outputfile):
     return True
 
 
-def merge_parsed(parsed_dir,output_dir):
+def merge_parsed(parsed_dir,output_dir,dim):
+    output_dir=os.path.join(output_dir,str(dim))
+    mkdir(output_dir)
     item_ls = os.listdir(parsed_dir)
     mkdir(output_dir,rm=True)
     output_datafile = os.path.join(output_dir, 'data.csv')
-    attribute_ls = ['amp', 'phi', 'err', 'labels']
+    attribute_ls = ['amp', 'phase', 'err', 'label','geo']
     with open(os.path.join(output_dir, 'Merge.log'), 'a') as f:
         timestr = time.strftime("%Y%m%d_%H%M", time.localtime())
         f.write('Data processing log' + timestr)
     dir_ls = []
+    list_of_data=[]
     for item in item_ls:
         with open(os.path.join(output_dir, 'Merge.log'), 'a') as f:
             if os.path.isdir(os.path.join(parsed_dir, item)):
-                dir_ls.append(os.path.join(parsed_dir, item))
-                f.write(f'Added data from {item}\n')
-            else:
-                item_ls.remove(item)
-    list_of_data = [pd.read_csv(os.path.join(d, 'data.csv'), index_col=0) for d in dir_ls]
+                d=os.path.join(parsed_dir, item)
+                dataitem=pd.read_csv(os.path.join(d, 'data.csv'), index_col=0)
+                if np.unique(dataitem.nx)==np.unique(dim):
+                    list_of_data.append(dataitem)
+                    f.write(f'Added data from {item}\n')
+                    dir_ls.append(d)
+    print(dir_ls)
     merge_csv(list_of_data, output_datafile)
     for att in attribute_ls:
-        merged_att = []
+        merged
         for d in dir_ls:
             merged_att.append(np.load(os.path.join(d, f'{att}.npy'), allow_pickle=True))
         merged_att = np.concatenate(merged_att)
@@ -96,7 +101,10 @@ class Dataset():
         for Nx in self.unit_sizes:
             self.src_data[Nx]=SingleSample(self.src_dir,f'src{Nx}')
         return
-
+    
+    def move_raw(self):
+        pass
+    
     def parse_data(self,threshold=0.01,ends=None):
         self.dphase=[]
         self.transmission=[]
@@ -153,13 +161,13 @@ class Dataset():
         errorls = np.delete(errorls, self.high_err, 0)
         labels=np.delete(labels, self.high_err, 0)
         mkdir(f'./{self.output_dir}/{name}')
-        np.save(f'./{self.output_dir}/{name}/geometry.npy', geos)
+        np.save(f'./{self.output_dir}/{name}/geo.npy', geos)
         csvtosave = pd.DataFrame(self.csvtosave)
         csvtosave.to_csv(f'./{self.output_dir}/{name}/data.csv')
         np.save(f'./{self.output_dir}/{name}/err.npy', errorls)
-        np.save(f'./{self.output_dir}/{name}/phi.npy', phasels)
+        np.save(f'./{self.output_dir}/{name}/phase.npy', phasels)
         np.save(f'./{self.output_dir}/{name}/amp.npy', ampls)
-        np.save(f'./{self.output_dir}/{name}/labels.npy', labels)
+        np.save(f'./{self.output_dir}/{name}/label.npy', labels)
         wl_list = np.round(wl_list, 3)
         np.savetxt(f'./{self.output_dir}/{name}/wavelengths.txt', wl_list)
 
