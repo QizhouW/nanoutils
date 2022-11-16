@@ -24,6 +24,7 @@ def readey(resdir, file):
 def merge_csv(list_of_data, outputfile):
     tmp = pd.concat(list_of_data).drop_duplicates(keep=False)
     tmp.reset_index(drop=True)
+    
     tmp.to_csv(outputfile)
     print('Merged data length: ', len(tmp))
     return True
@@ -104,9 +105,7 @@ class Dataset():
         for Nx in self.unit_sizes:
             self.src_data[Nx]=SingleSample(self.src_dir,f'src{Nx}')
         return
-    
-    def move_raw(self):
-        pass
+
     
     def parse_data(self,threshold=0.01,ends=None):
         self.dphase=[]
