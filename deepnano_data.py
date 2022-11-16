@@ -36,6 +36,11 @@ def clear_csv(all_data, parsed_data, outputfile):
     return True
 
 
+def merge_raw(raw_dir,output_dir,dim):
+    output_dir = os.path.join(output_dir, str(dim))
+    mkdir(output_dir)
+    pass
+
 def merge_parsed(parsed_dir,output_dir,dim):
     output_dir=os.path.join(output_dir,str(dim))
     mkdir(output_dir)
@@ -60,15 +65,13 @@ def merge_parsed(parsed_dir,output_dir,dim):
     print(dir_ls)
     merge_csv(list_of_data, output_datafile)
     for att in attribute_ls:
-        merged
+        merged_att = []
         for d in dir_ls:
             merged_att.append(np.load(os.path.join(d, f'{att}.npy'), allow_pickle=True))
         merged_att = np.concatenate(merged_att)
         np.save(os.path.join(output_dir, f'{att}.npy'), merged_att)
     return True
 
-def merge_raw(raw_dir):
-    pass
 
 class SingleSample():
     def __init__(self,dir,samplename):
