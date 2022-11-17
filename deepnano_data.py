@@ -13,7 +13,16 @@ import time
 import pandas as pd
 from phase_utils import parse_phase,diff_phase,extract_wl
 from skimage import io
-from utils import mkdir
+import shutil
+import h5py
+
+def mkdir(path,rm=False):
+    if not os.path.exists(path):
+        os.makedirs(path)
+    else:
+        if rm:
+            shutil.rmtree(path)
+            os.mkdir(path)
 
 def readey(resdir, file):
     path = os.path.join(resdir, file)
@@ -37,14 +46,35 @@ def clear_csv(all_data, parsed_data, outputfile):
     return True
 
 
-def merge_raw(raw_dir,output_dir,dim):
-    output_dir = os.path.join(output_dir, str(dim))
+def raw_to_hdf5(raw_dir,name,output_dir,dim):
+    output_dir = os.path.join(output_dir, name)
     mkdir(output_dir)
-    pass
+    #item_ls = os.listdir(raw_dir)
+    output_datafile = os.path.join(output_dir, dim,'data.csv')
+    mkdir(os.path.join(output_dir, dim))
+    dir_ls = []
+    list_of_data=[]
+
+    if os.path.isdir(os.path.join(raw_dir, name)):
+        d=os.path.join(raw_dir, name)
+        dataitem=pd.read_csv(os.path.join(d,  f'data_{name}.csv'), index_col=0)
+    assert np.unique(dataitem.nx)==np.unique(dim)
+    mkdir(os.path.join(output_dir, dim, name))
+    with h5py.File("mytestfile.hdf5", "w") as f:
+        grp = f.create_group("g50")
+        grp.create_dataset("rwUyXppMOqbBXKVvKmUE", ex.shape, dtype=ex.dtype)
+        grp['rwUyXppMOqbBXKVvKmUE'][...] = ex
+        for item in dataitem:
+            harm = readey(os.path.join(d,'resdata'), f'ex_{item.prefix}.bin')
+            harm = harm.reshape(-1, 4)
+
+
+    return
+
+
 
 def merge_parsed(parsed_dir,output_dir,dim):
     output_dir=os.path.join(output_dir,str(dim))
-    mkdir(output_dir)
     item_ls = os.listdir(parsed_dir)
     mkdir(output_dir,rm=True)
     output_datafile = os.path.join(output_dir, 'data.csv')
@@ -105,7 +135,6 @@ class Dataset():
         for Nx in self.unit_sizes:
             self.src_data[Nx]=SingleSample(self.src_dir,f'src{Nx}')
         return
-
     
     def parse_data(self,threshold=0.01,ends=None):
         self.dphase=[]
