@@ -14,6 +14,9 @@ import pandas as pd
 from phase_utils import parse_phase,diff_phase,extract_wl
 from skimage import io
 from utils import mkdir
+import h5py
+
+
 
 def readey(resdir, file):
     path = os.path.join(resdir, file)
@@ -37,9 +40,52 @@ def clear_csv(all_data, parsed_data, outputfile):
     return True
 
 
+def raw_to_hdf5(raw_dir,name,compression=4):
+    ## Before delete, check if the parse is complete, use this externally, no need to integrate
+    output_dir = os.path.join(raw_dir, name, 'hdf5')
+    mkdir(output_dir)
+    len_of_data=[]
+    if  not os.path.isdir(os.path.join(raw_dir, name)):
+        print('Raw data does not exist')
+        return -1
+
+    d=os.path.join(raw_dir, name)
+    dataitem=pd.read_csv(os.path.join(d,  f'data_{name}.csv'), index_col=0)
+    len_of_data.append(len(dataitem))
+    print(f'Processing {name} length {len(dataitem)}')
+
+    with h5py.File(os.path.join(output_dir,"data.hdf5"), "w") as f:
+        gex = f.create_group("ex")
+        gey = f.create_group("ey")
+        gshape= f.create_group("geo")
+        for idx,item in dataitem.iterrows():
+            ex = readey(os.path.join(d,'resdata'), f'ex_{item.prefix}.bin')
+            ex = ex.reshape(-1, 4)
+            gex.create_dataset(item.prefix,ex.shape,dtype='float64',compression="gzip", compression_opts=compression)
+            gex[item.prefix][...] = ex
+
+            ey = readey(os.path.join(d,'resdata'), f'ey_{item.prefix}.bin')
+            ey = ey.reshape(-1, 4)
+            gey.create_dataset(item.prefix,ey.shape,dtype='float64',compression="gzip", compression_opts=compression)
+            gey[item.prefix][...] = ey
+            
+            geo = io.imread(os.path.join(d,'geo',f'{item.prefix}.png'))
+            geo = geo[:, :, 0]
+            geo[geo == 8] = 0
+            geo[geo == 255] = 1
+            
+            gshape.create_dataset(item.prefix,geo.shape,dtype='uint8',compression="gzip", compression_opts=compression)
+            gshape[item.prefix][...] = geo
+            
+                
+            
+
+    return
+
+
+
 def merge_parsed(parsed_dir,output_dir,dim):
     output_dir=os.path.join(output_dir,str(dim))
-    mkdir(output_dir)
     item_ls = os.listdir(parsed_dir)
     mkdir(output_dir,rm=True)
     output_datafile = os.path.join(output_dir, 'data.csv')
@@ -61,15 +107,13 @@ def merge_parsed(parsed_dir,output_dir,dim):
     print(dir_ls)
     merge_csv(list_of_data, output_datafile)
     for att in attribute_ls:
-        merged
+        merged_att = []
         for d in dir_ls:
             merged_att.append(np.load(os.path.join(d, f'{att}.npy'), allow_pickle=True))
         merged_att = np.concatenate(merged_att)
         np.save(os.path.join(output_dir, f'{att}.npy'), merged_att)
     return True
 
-def merge_raw(raw_dir):
-    pass
 
 class SingleSample():
     def __init__(self,dir,samplename):
@@ -102,9 +146,6 @@ class Dataset():
         for Nx in self.unit_sizes:
             self.src_data[Nx]=SingleSample(self.src_dir,f'src{Nx}')
         return
-    
-    def move_raw(self):
-        pass
     
     def parse_data(self,threshold=0.01,ends=None):
         self.dphase=[]

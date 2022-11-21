@@ -40,7 +40,7 @@ def clear_csv(all_data, parsed_data, outputfile):
     return True
 
 
-def raw_to_hdf5(raw_dir,name):
+def raw_to_hdf5(raw_dir,name,compression=4):
     ## Before delete, check if the parse is complete, use this externally, no need to integrate
     output_dir = os.path.join(raw_dir, name, 'hdf5')
     mkdir(output_dir)
@@ -58,20 +58,27 @@ def raw_to_hdf5(raw_dir,name):
         gex = f.create_group("ex")
         gey = f.create_group("ey")
         gshape= f.create_group("geo")
-        for item in dataitem:
+        for idx,item in dataitem.iterrows():
             ex = readey(os.path.join(d,'resdata'), f'ex_{item.prefix}.bin')
             ex = ex.reshape(-1, 4)
-            gex.create_dataset(item.prefix,ex.shape,dtype=ex.dtype)
+            gex.create_dataset(item.prefix,ex.shape,dtype='float64',compression="gzip", compression_opts=compression)
             gex[item.prefix][...] = ex
 
             ey = readey(os.path.join(d,'resdata'), f'ey_{item.prefix}.bin')
             ey = ey.reshape(-1, 4)
-            gey.create_dataset(item.prefix,ey.shape,dtype=ey.dtype)
+            gey.create_dataset(item.prefix,ey.shape,dtype='float64',compression="gzip", compression_opts=compression)
             gey[item.prefix][...] = ey
-
-            geo=np.load(os.path.join(d,'geo',f'{item.prefix}.npy'))
-            gshape.create_dataset(item.prefix,geo.shape,dtype=geo.dtype)
+            
+            geo = io.imread(os.path.join(d,'geo',f'{item.prefix}.png'))
+            geo = geo[:, :, 0]
+            geo[geo == 8] = 0
+            geo[geo == 255] = 1
+            
+            gshape.create_dataset(item.prefix,geo.shape,dtype='uint8',compression="gzip", compression_opts=compression)
             gshape[item.prefix][...] = geo
+            
+                
+            
 
     return
 
