@@ -13,16 +13,10 @@ import time
 import pandas as pd
 from phase_utils import parse_phase,diff_phase,extract_wl
 from skimage import io
-import shutil
+from utils import mkdir
 import h5py
 
-def mkdir(path,rm=False):
-    if not os.path.exists(path):
-        os.makedirs(path)
-    else:
-        if rm:
-            shutil.rmtree(path)
-            os.mkdir(path)
+
 
 def readey(resdir, file):
     path = os.path.join(resdir, file)
@@ -46,28 +40,38 @@ def clear_csv(all_data, parsed_data, outputfile):
     return True
 
 
-def raw_to_hdf5(raw_dir,name,output_dir,dim):
-    output_dir = os.path.join(output_dir, name)
+def raw_to_hdf5(raw_dir,name):
+    ## Before delete, check if the parse is complete, use this externally, no need to integrate
+    output_dir = os.path.join(raw_dir, name, 'hdf5')
     mkdir(output_dir)
-    #item_ls = os.listdir(raw_dir)
-    output_datafile = os.path.join(output_dir, dim,'data.csv')
-    mkdir(os.path.join(output_dir, dim))
-    dir_ls = []
-    list_of_data=[]
+    len_of_data=[]
+    if  not os.path.isdir(os.path.join(raw_dir, name)):
+        print('Raw data does not exist')
+        return -1
 
-    if os.path.isdir(os.path.join(raw_dir, name)):
-        d=os.path.join(raw_dir, name)
-        dataitem=pd.read_csv(os.path.join(d,  f'data_{name}.csv'), index_col=0)
-    assert np.unique(dataitem.nx)==np.unique(dim)
-    mkdir(os.path.join(output_dir, dim, name))
-    with h5py.File("mytestfile.hdf5", "w") as f:
-        grp = f.create_group("g50")
-        grp.create_dataset("rwUyXppMOqbBXKVvKmUE", ex.shape, dtype=ex.dtype)
-        grp['rwUyXppMOqbBXKVvKmUE'][...] = ex
+    d=os.path.join(raw_dir, name)
+    dataitem=pd.read_csv(os.path.join(d,  f'data_{name}.csv'), index_col=0)
+    len_of_data.append(len(dataitem))
+    print(f'Processing {name} length {len(dataitem)}')
+
+    with h5py.File(os.path.join(output_dir,"data.hdf5"), "w") as f:
+        gex = f.create_group("ex")
+        gey = f.create_group("ey")
+        gshape= f.create_group("geo")
         for item in dataitem:
-            harm = readey(os.path.join(d,'resdata'), f'ex_{item.prefix}.bin')
-            harm = harm.reshape(-1, 4)
+            ex = readey(os.path.join(d,'resdata'), f'ex_{item.prefix}.bin')
+            ex = ex.reshape(-1, 4)
+            gex.create_dataset(item.prefix,ex.shape,dtype=ex.dtype)
+            gex[item.prefix][...] = ex
 
+            ey = readey(os.path.join(d,'resdata'), f'ey_{item.prefix}.bin')
+            ey = ey.reshape(-1, 4)
+            gey.create_dataset(item.prefix,ey.shape,dtype=ey.dtype)
+            gey[item.prefix][...] = ey
+
+            geo=np.load(os.path.join(d,'geo',f'{item.prefix}.npy'))
+            gshape.create_dataset(item.prefix,geo.shape,dtype=geo.dtype)
+            gshape[item.prefix][...] = geo
 
     return
 
