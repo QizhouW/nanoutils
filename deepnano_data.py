@@ -45,8 +45,8 @@ def raw_to_hdf5(raw_dir,name,compression=4):
     output_dir = os.path.join(raw_dir, name, 'hdf5')
     mkdir(output_dir)
     len_of_data=[]
-    if  not os.path.isdir(os.path.join(raw_dir, name)):
-        print('Raw data does not exist')
+    if  not os.path.isdir(os.path.join(raw_dir, name,'resdata')):
+        print(f'Raw data does not exist, might be processed in {name}')
         return -1
 
     d=os.path.join(raw_dir, name)
@@ -59,28 +59,28 @@ def raw_to_hdf5(raw_dir,name,compression=4):
         gey = f.create_group("ey")
         gshape= f.create_group("geo")
         for idx,item in dataitem.iterrows():
-            ex = readey(os.path.join(d,'resdata'), f'ex_{item.prefix}.bin')
-            ex = ex.reshape(-1, 4)
-            gex.create_dataset(item.prefix,ex.shape,dtype='float64',compression="gzip", compression_opts=compression)
-            gex[item.prefix][...] = ex
+            try:
+                ex = readey(os.path.join(d,'resdata'), f'ex_{item.prefix}.bin')
+                ex = ex.reshape(-1, 4)
+                gex.create_dataset(item.prefix,ex.shape,dtype='float64',compression="gzip", compression_opts=compression)
+                gex[item.prefix][...] = ex
 
-            ey = readey(os.path.join(d,'resdata'), f'ey_{item.prefix}.bin')
-            ey = ey.reshape(-1, 4)
-            gey.create_dataset(item.prefix,ey.shape,dtype='float64',compression="gzip", compression_opts=compression)
-            gey[item.prefix][...] = ey
-            
-            geo = io.imread(os.path.join(d,'geo',f'{item.prefix}.png'))
-            geo = geo[:, :, 0]
-            geo[geo == 8] = 0
-            geo[geo == 255] = 1
-            
-            gshape.create_dataset(item.prefix,geo.shape,dtype='uint8',compression="gzip", compression_opts=compression)
-            gshape[item.prefix][...] = geo
-            
+                ey = readey(os.path.join(d,'resdata'), f'ey_{item.prefix}.bin')
+                ey = ey.reshape(-1, 4)
+                gey.create_dataset(item.prefix,ey.shape,dtype='float64',compression="gzip", compression_opts=compression)
+                gey[item.prefix][...] = ey
+
+                geo = io.imread(os.path.join(d,'geo',f'{item.prefix}.png'))
+                geo = geo[:, :, 0]
+                geo[geo == 8] = 0
+                geo[geo == 255] = 1
+
+                gshape.create_dataset(item.prefix,geo.shape,dtype='uint8',compression="gzip", compression_opts=compression)
+                gshape[item.prefix][...] = geo
                 
-            
-
-    return
+            except FileNotFoundError:
+                print(f'Processing file {idx+1}. ignoring incomplete simulations.')
+    return 0 
 
 
 
