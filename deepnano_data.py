@@ -44,15 +44,15 @@ def raw_to_hdf5(raw_dir,name,compression=4):
     ## Before delete, check if the parse is complete, use this externally, no need to integrate
     output_dir = os.path.join(raw_dir, name, 'hdf5')
     mkdir(output_dir)
-    len_of_data=[]
+    d=os.path.join(raw_dir, name)
+    dataitem=pd.read_csv(os.path.join(d,  f'data_{name}.csv'), index_col=0)
+    print(f'Processing {name} length {len(dataitem)}')
+    
     if  not os.path.isdir(os.path.join(raw_dir, name,'resdata')):
         print(f'Raw data does not exist, might be processed in {name}')
         return -1
 
-    d=os.path.join(raw_dir, name)
-    dataitem=pd.read_csv(os.path.join(d,  f'data_{name}.csv'), index_col=0)
-    len_of_data.append(len(dataitem))
-    print(f'Processing {name} length {len(dataitem)}')
+
 
     with h5py.File(os.path.join(output_dir,"data.hdf5"), "w") as f:
         gex = f.create_group("ex")
@@ -180,7 +180,8 @@ class Dataset():
                     self.high_err.append(idx)
                 else:
                     self.csvtosave.append(item)
-            except:
+            except Exception as e: # work on python 3.x
+                print(str(e))
                 print(f'Error in parsing: {idx}')
                 self.high_err.append(idx)
             if ends:
