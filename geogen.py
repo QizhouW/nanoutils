@@ -341,6 +341,20 @@ def gen_shape_from_label(labels, dim):
     canvas.add_shapes(shapes)
     return canvas.mask
 
+def from_x_to_labels(x, dim=[100, 100]):
+    labels = []
+    input_shape=dim
+    nx = input_shape[0]
+    ny = input_shape[1]
+    x = x.reshape(-1, 4)
+    for i, rect in enumerate(x):
+        xy_c = tuple(np.rint([rect[0] * nx, rect[1] * ny]).astype(int))
+        wx, wy = np.rint([rect[2] * nx, rect[3] * ny]).astype(int)
+        label = {'rectangle': [xy_c, wx, wy]}
+        labels.append(label)
+    return labels
+
+
 
 def write_png_geometry(imgpath, savedir, dx=0.005, grid_shape=[200, 200, 200], h=0.2, z1=0.4):
     assert imgpath.endswith('png'), 'Imgpath not correct'
