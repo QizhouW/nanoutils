@@ -350,7 +350,7 @@ def from_x_to_labels(x, dim=[100, 100]):
     for i, rect in enumerate(x):
         xy_c = tuple(np.rint([rect[0] * nx, rect[1] * ny]).astype(int))
         wx, wy = np.rint([rect[2] * nx, rect[3] * ny]).astype(int)
-        label = {'rectangle': [xy_c, wx, wy]}
+        label = ['rectangle', [xy_c, wx, wy]]
         labels.append(label)
     return labels
 
