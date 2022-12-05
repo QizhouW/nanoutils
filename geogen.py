@@ -8,7 +8,7 @@ import numpy as np
 from skimage import io
 from skimage.draw import polygon, rectangle, ellipse
 from shapely.geometry import Polygon, Point, MultiPoint, MultiPolygon
-from skimage.draw import circle, ellipse, rectangle, rectangle_perimeter
+from skimage.draw import ellipse, rectangle, rectangle_perimeter
 from shapely.affinity import skew, affine_transform, translate, rotate, scale
 from skimage.draw import random_shapes
 import matplotlib.pyplot as plt
@@ -353,7 +353,6 @@ def from_x_to_labels(x, dim=[100, 100]):
         label = {'rectangle': [xy_c, wx, wy]}
         labels.append(label)
     return labels
-
 
 
 def write_png_geometry(imgpath, savedir, dx=0.005, grid_shape=[200, 200, 200], h=0.2, z1=0.4):
