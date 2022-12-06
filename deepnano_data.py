@@ -40,6 +40,10 @@ def clear_csv(all_data, parsed_data, outputfile):
     return True
 
 
+def parse_label(data_item):
+    return eval(data_item[0])
+
+
 def raw_to_hdf5(raw_dir,name,compression=4):
     ## Before delete, check if the parse is complete, use this externally, no need to integrate
     output_dir = os.path.join(raw_dir, name, 'hdf5')
@@ -78,7 +82,8 @@ def raw_to_hdf5(raw_dir,name,compression=4):
                 gshape[item.prefix][...] = geo
 
                 label = np.load(d + f'/geo/{item.prefix}.npy', allow_pickle=True)
-                glabel.create_dataset(item.prefix,label)
+                glabel.create_dataset(item.prefix,1,dtype=h5py.string_dtype())
+                glabel[item.prefix][...] = label
 
             except FileNotFoundError:
                 print(f'Processing file {idx+1}. ignoring incomplete simulations.')
@@ -279,7 +284,7 @@ class Dataset_H5(Dataset):
                     break
         print('High error data: ', len(self.high_err))
         print('Normal data: ', len(self.csvtosave))
-
+        f.close()
 
 
 if __name__ == '__main__':
