@@ -52,12 +52,11 @@ def raw_to_hdf5(raw_dir,name,compression=4):
         print(f'Raw data does not exist, might be processed in {name}')
         return -1
 
-
-
     with h5py.File(os.path.join(output_dir,"data.hdf5"), "w") as f:
         gex = f.create_group("ex")
         gey = f.create_group("ey")
         gshape= f.create_group("geo")
+        glabel = f.create_group("label")
         for idx,item in dataitem.iterrows():
             try:
                 ex = readey(os.path.join(d,'resdata'), f'ex_{item.prefix}.bin')
@@ -77,7 +76,10 @@ def raw_to_hdf5(raw_dir,name,compression=4):
 
                 gshape.create_dataset(item.prefix,geo.shape,dtype='uint8',compression="gzip", compression_opts=compression)
                 gshape[item.prefix][...] = geo
-                
+
+                label = np.load(d + f'/geo/{item.prefix}.npy', allow_pickle=True)
+                glabel.create_dataset(item.prefix,label)
+
             except FileNotFoundError:
                 print(f'Processing file {idx+1}. ignoring incomplete simulations.')
     return 0 
@@ -129,6 +131,21 @@ class SingleSample():
 
     def __repr__(self):
         return 'ex:\n'+str(self.ex)+'\ney:\n'+str(self.ey)
+
+
+class H5Sample():
+    def __init__(self,f,samplename):
+        srcex = f['ex'][samplename][:, 1]
+        msex, psrcex, asrcex = parse_phase(srcex, m=20, wl1=0.38, wl2=0.7, D=100, dt=4.81458e-12, skip=10000)
+        srcey = f['ex'][samplename][:, 2]
+        msey, psrcey, asrcey = parse_phase(srcey, m=20, wl1=0.38, wl2=0.7, D=100, dt=4.81458e-12, skip=10000)
+        self.ex={'phase':psrcex,'amp':asrcex,'mse':msex}
+        self.ey={'phase':psrcey,'amp':asrcey,'mse':msey}
+        return
+
+    def __repr__(self):
+        return 'ex:\n'+str(self.ex)+'\ney:\n'+str(self.ey)
+
 
 class Dataset():
     def __init__(self, src_dir, ful_dir, csv_file, output_dir):
@@ -214,3 +231,61 @@ class Dataset():
         wl_list = np.round(wl_list, 3)
         np.savetxt(f'./{self.output_dir}/{name}/wavelengths.txt', wl_list)
 
+
+
+class Dataset_H5(Dataset):
+    def __init__(self, src_dir, ful_dir, csv_file, output_dir):
+        Dataset.__init__(self, src_dir, ful_dir, csv_file, output_dir)
+
+    def parse_data(self,threshold=0.01,ends=None):
+        self.dphase=[]
+        self.transmission=[]
+        self.geometry=[]
+        self.labels=[]
+        self.high_err=[]
+        self.csvtosave=[]
+        self.error=[]
+        f=h5py.File(os.path.join(self.ful_dir+'/hdf5/data.hdf5'), "r")
+        for idx, item in enumerate(self.data_log.iterrows()):
+            try:
+                if idx%1000==0:
+                    print(idx)
+                item = item[1]
+                Nx=item.nx
+                src_data=self.src_data[Nx]
+                ful_data=H5Sample(f,item.prefix)
+                dphasex=diff_phase(src_data.ex['phase'],ful_data.ex['phase'],unwrap=False)
+                dphasey=diff_phase(src_data.ey['phase'],ful_data.ey['phase'],unwrap=False)
+                self.dphase.append(([dphasex,dphasey]))
+                self.transmission.append([ful_data.ex['amp']/src_data.ex['amp'],ful_data.ey['amp']/src_data.ey['amp']])
+                self.error.append([ful_data.ex['mse'], ful_data.ey['mse']])
+                img=f['geo'][item.prefix]
+                self.geometry.append(img)
+                if 'label' in f.keys():
+                    label=f['label'][item.prefix]  # if the hdf5 have label data, read it, else save as -1
+                else:
+                    label=np.zeros(10)-1
+                self.labels.append(label)
+                if ful_data.ex['mse'] > threshold or ful_data.ey['mse'] > threshold:
+                    self.high_err.append(idx)
+                else:
+                    self.csvtosave.append(item)
+            except Exception as e: # work on python 3.x
+                print(str(e))
+                print(f'Error in parsing: {idx}')
+                self.high_err.append(idx)
+            if ends:
+                if idx == ends-1:
+                    break
+        print('High error data: ', len(self.high_err))
+        print('Normal data: ', len(self.csvtosave))
+
+
+
+
+src_dir='/home/wangq0d/projects/METALENS/dataset/h5test/src_res/'
+ful_dir='/home/wangq0d/projects/METALENS/dataset/h5test/'
+csv_file='/home/wangq0d/projects/METALENS/dataset/h5test/data_Oct24_200.csv'
+output_dir='.//home/wangq0d/projects/METALENS/dataset/h5test/parsed_data/'
+a=Dataset_H5(src_dir, ful_dir, csv_file, output_dir)
+a.parse_data()
