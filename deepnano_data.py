@@ -282,10 +282,10 @@ class Dataset_H5(Dataset):
 
 
 
-
-src_dir='/home/wangq0d/projects/METALENS/dataset/h5test/src_res/'
-ful_dir='/home/wangq0d/projects/METALENS/dataset/h5test/'
-csv_file='/home/wangq0d/projects/METALENS/dataset/h5test/data_Oct24_200.csv'
-output_dir='.//home/wangq0d/projects/METALENS/dataset/h5test/parsed_data/'
-a=Dataset_H5(src_dir, ful_dir, csv_file, output_dir)
-a.parse_data()
+if __name__ == '__main__':
+    src_dir='/home/wangq0d/projects/METALENS/dataset/h5test/src_res/'
+    ful_dir='/home/wangq0d/projects/METALENS/dataset/h5test/'
+    csv_file='/home/wangq0d/projects/METALENS/dataset/h5test/data_Oct24_200.csv'
+    output_dir='.//home/wangq0d/projects/METALENS/dataset/h5test/parsed_data/'
+    a=Dataset_H5(src_dir, ful_dir, csv_file, output_dir)
+    a.parse_data()
