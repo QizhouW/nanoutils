@@ -82,8 +82,8 @@ def raw_to_hdf5(raw_dir,name,compression=4):
                 gshape[item.prefix][...] = geo
 
                 label = np.load(d + f'/geo/{item.prefix}.npy', allow_pickle=True)
-                glabel.create_dataset(item.prefix,1,dtype=h5py.string_dtype())
-                glabel[item.prefix][...] = label
+                glabel.create_dataset(item.prefix,(1,),dtype=h5py.string_dtype())
+                glabel[item.prefix][...] = str(label)
 
             except FileNotFoundError:
                 print(f'Processing file {idx+1}. ignoring incomplete simulations.')
