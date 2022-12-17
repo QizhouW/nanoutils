@@ -116,7 +116,9 @@ def merge_parsed(parsed_dir,output_dir,dim):
     for att in attribute_ls:
         merged_att = []
         for d in dir_ls:
-            merged_att.append(np.load(os.path.join(d, f'{att}.npy'), allow_pickle=True))
+            tmp=np.load(os.path.join(d, f'{att}.npy'), allow_pickle=True)
+            merged_att.append(tmp)
+            #print(att,d,tmp.shape)
         merged_att = np.concatenate(merged_att)
         np.save(os.path.join(output_dir, f'{att}.npy'), merged_att)
     return True
